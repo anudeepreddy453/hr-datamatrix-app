@@ -1,0 +1,29 @@
+# Use local packages from portable_packages folder
+--no-index
+--find-links=portable_packages
+
+# Core Flask dependencies
+Flask
+Flask-SQLAlchemy
+Flask-CORS
+Flask-JWT-Extended
+Flask-Bcrypt
+python-dotenv
+
+# Data processing
+pandas
+numpy
+openpyxl
+
+# Database
+psycopg2-binary
+
+# Other dependencies
+Werkzeug
+SQLAlchemy
+PyJWT
+bcrypt
+click
+itsdangerous
+Jinja2
+MarkupSafe
