@@ -26,6 +26,9 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
+# Fix JWT configuration
+app.config['JWT_IDENTITY_CLAIM'] = 'sub'
+app.config['JWT_ERROR_MESSAGE_KEY'] = 'message'
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -57,7 +60,7 @@ def expired_token_callback(jwt_header, jwt_payload):
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    print(f"�� JWT Invalid Token: {error}")
+    print(f"🔴 JWT Invalid Token: {error}")
     return jsonify({
         'message': 'Signature verification failed',
         'error': 'invalid_token'
@@ -102,7 +105,7 @@ class User(db.Model):
         from werkzeug.security import check_password_hash
         try:
             result = check_password_hash(self.password_hash, password)
-            print(f"�� Password check for {self.email}: {result}")
+            print(f"🔍 Password check for {self.email}: {result}")
             return result
         except Exception as e:
             print(f"❌ Password check error for {self.email}: {e}")
@@ -355,7 +358,7 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
         
         print(f"✅ User found: {user.name} ({user.email})")
-        print(f"�� User status: {user.status}")
+        print(f"📊 User status: {user.status}")
         print(f"📊 User role: {user.role}")
         
         # Check password
@@ -381,9 +384,10 @@ def login():
         
         print(f"✅ User status check passed: {email}")
         
-        # Create access token
-        access_token = create_access_token(identity=user.id)
+        # Create access token - FIX: Convert user.id to string
+        access_token = create_access_token(identity=str(user.id))
         print(f"✅ Access token created for: {email}")
+        print(f"🔑 Token identity: {user.id} (type: {type(user.id)})")
         
         # Log audit trail
         _log_audit(
@@ -425,6 +429,9 @@ def get_current_user():
         user_id = get_jwt_identity()
         print(f"�� User ID from token: {user_id}")
         
+        # Convert string back to integer for database query
+        user_id = int(user_id) if user_id else None
+        
         user = User.query.get(user_id)
         
         if not user:
@@ -453,6 +460,9 @@ def logout():
     print("🟡 Logout request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         user = User.query.get(user_id)
         
         if user:
@@ -482,6 +492,9 @@ def get_users():
     print("🟡 Get users request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -517,6 +530,9 @@ def update_user(user_id):
     print(f"🟡 Update user request for ID: {user_id}")
     try:
         current_user_id = get_jwt_identity()
+        # Convert string back to integer
+        current_user_id = int(current_user_id) if current_user_id else None
+        
         current_user = User.query.get(current_user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -603,6 +619,9 @@ def delete_user(user_id):
     print(f"🟡 Delete user request for ID: {user_id}")
     try:
         current_user_id = get_jwt_identity()
+        # Convert string back to integer
+        current_user_id = int(current_user_id) if current_user_id else None
+        
         current_user = User.query.get(current_user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -655,6 +674,9 @@ def get_access_requests():
     print("🟡 Get access requests")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role not in ['admin', 'hr_manager']:
@@ -692,6 +714,9 @@ def update_access_request(request_id):
     print(f"🟡 Update access request for ID: {request_id}")
     try:
         current_user_id = get_jwt_identity()
+        # Convert string back to integer
+        current_user_id = int(current_user_id) if current_user_id else None
+        
         current_user = User.query.get(current_user_id)
         
         if not current_user or current_user.role not in ['admin', 'hr_manager']:
@@ -788,6 +813,9 @@ def get_audit_logs():
     print("🟡 Get audit logs request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -855,6 +883,9 @@ def create_role():
     print("🟡 Create role request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -961,6 +992,9 @@ def create_succession_plan():
     print("🟡 Create succession plan request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -1036,6 +1070,9 @@ def upload_roles():
     print("🟡 Upload roles request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -1057,7 +1094,7 @@ def upload_roles():
         
         # Read Excel file
         df = pd.read_excel(file)
-        print(f"�� Excel file read: {len(df)} rows")
+        print(f"📊 Excel file read: {len(df)} rows")
         
         # Validate required columns
         required_columns = ['Title', 'Name', 'Department', 'Business Line', 'Criticality']
@@ -1101,7 +1138,7 @@ def upload_roles():
             additional_info=f'Bulk role upload: {created_count} roles created, {len(errors)} errors'
         )
         
-                return jsonify({
+        return jsonify({
             'message': f'Successfully uploaded {created_count} roles',
             'created_count': created_count,
             'errors': errors
@@ -1119,6 +1156,9 @@ def upload_succession_plans():
     print("🟡 Upload succession plans request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -1208,6 +1248,9 @@ def get_dashboard_analytics():
     print("🟡 Get dashboard analytics request")
     try:
         user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
         current_user = User.query.get(user_id)
         
         if not current_user or current_user.role != 'admin':
@@ -1312,7 +1355,7 @@ def debug_password():
             return jsonify({'error': 'User not found'}), 404
         
         print(f"✅ Debug: User found: {user.name}")
-        print(f"�� Debug: User status: {user.status}")
+        print(f"📊 Debug: User status: {user.status}")
         print(f"📊 Debug: User role: {user.role}")
         print(f"📊 Debug: Password hash length: {len(user.password_hash)}")
         
@@ -1352,7 +1395,7 @@ if __name__ == '__main__':
         else:
             print("✅ Users found in database")
     
-    print("�� Server starting on http://localhost:5001")
+    print("🌐 Server starting on http://localhost:5001")
     print("🔧 Debug endpoints available:")
     print("   - GET  /api/test")
     print("   - GET  /api/debug/users")
