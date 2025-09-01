@@ -1,1 +1,36 @@
-curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"admin@test.com\",\"password\":\"admin123\"}"
+from app import app, db, User
+from werkzeug.security import generate_password_hash
+from datetime import datetime
+
+with app.app_context():
+    # Delete existing user
+    User.query.filter_by(email='admin@test.com').delete()
+    db.session.commit()
+    
+    # Create new user
+    user = User(
+        name='Test Admin',
+        email='admin@test.com',
+        password_hash=generate_password_hash('admin123'),
+        role='admin',
+        department='IT',
+        status='active',
+        created_at=datetime.utcnow(),
+        approved_at=datetime.utcnow()
+    )
+    
+    db.session.add(user)
+    db.session.commit()
+    print("✅ User created")
+    
+    # Test password
+    test_user = User.query.filter_by(email='admin@test.com').first()
+    if test_user:
+        result = test_user.check_password('admin123')
+        print(f"✅ Password test: {result}")
+        if result:
+            print("🎉 SUCCESS! Password verification works!")
+        else:
+            print("❌ Still failing - need different approach")
+    else:
+        print("❌ User not found")
