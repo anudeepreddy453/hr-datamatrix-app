@@ -1,32 +1,16 @@
-# 1. Stop backend (Ctrl+C)
-# 2. Delete database
-del instance\hr_succession.db
-
-# 3. Start Python
-python
-
-# 4. Paste this code:
 from app import app, db, User
-from werkzeug.security import generate_password_hash
-from datetime import datetime
 
 with app.app_context():
-    db.create_all()
-    
-    user = User(
-        name='Admin User',
-        email='admin@test.com',
-        password_hash=generate_password_hash('admin123'),
-        role='admin',
-        department='IT',
-        status='active',
-        created_at=datetime.utcnow(),
-        approved_at=datetime.utcnow()
-    )
-    
-    db.session.add(user)
-    db.session.commit()
-    print("✅ User created: admin@test.com / admin123")
+    users = User.query.all()
+    print(f"Found {len(users)} users:")
+    for user in users:
+        print(f"- {user.email}: {user.status}")
+        try:
+            result = user.check_password("admin123")
+            print(f"  Password check: {result}")
+        except Exception as e:
+            print(f"  Password error: {e}")
 
-# 5. Exit Python (Ctrl+Z, then Enter)
-# 6. Restart backend: python app.py
+
+
+curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"admin@test.com\",\"password\":\"admin123\"}"
