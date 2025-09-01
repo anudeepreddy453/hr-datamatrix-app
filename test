@@ -1,19 +1,15 @@
-# Stop backend (Ctrl+C)
-# Delete database
-del instance\hr_succession.db
-
-# Start Python
-python
-
-# Paste this code:
 from app import app, db, User
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 with app.app_context():
+    # Create fresh database
     db.create_all()
+    print("✅ Database created")
+    
+    # Create ONE simple user
     user = User(
-        name='Test Admin',
+        name='Simple Admin',
         email='admin@test.com',
         password_hash=generate_password_hash('admin123'),
         role='admin',
@@ -22,9 +18,16 @@ with app.app_context():
         created_at=datetime.utcnow(),
         approved_at=datetime.utcnow()
     )
+    
     db.session.add(user)
     db.session.commit()
-    print("✅ Created: admin@test.com / admin123")
-
-# Exit Python (Ctrl+Z, Enter)
-# Restart backend: python app.py
+    print("✅ User created: admin@test.com / admin123")
+    
+    # Test immediately
+    test_user = User.query.filter_by(email='admin@test.com').first()
+    if test_user:
+        result = test_user.check_password('admin123')
+        print(f"✅ Password test: {result}")
+        print(f"✅ User status: {test_user.status}")
+    else:
+        print("❌ User not found")
