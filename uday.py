@@ -22,11 +22,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///hr_
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-here')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-# Explicitly use header-based JWT to avoid CSRF-related 422s
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
-# Fix JWT configuration
 app.config['JWT_IDENTITY_CLAIM'] = 'sub'
 app.config['JWT_ERROR_MESSAGE_KEY'] = 'message'
 
@@ -60,7 +58,7 @@ def expired_token_callback(jwt_header, jwt_payload):
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    print(f"🔴 JWT Invalid Token: {error}")
+    print(f"�� JWT Invalid Token: {error}")
     return jsonify({
         'message': 'Signature verification failed',
         'error': 'invalid_token'
@@ -105,7 +103,7 @@ class User(db.Model):
         from werkzeug.security import check_password_hash
         try:
             result = check_password_hash(self.password_hash, password)
-            print(f"🔍 Password check for {self.email}: {result}")
+            print(f"�� Password check for {self.email}: {result}")
             return result
         except Exception as e:
             print(f"❌ Password check error for {self.email}: {e}")
@@ -255,6 +253,23 @@ def _send_email(to_email, subject, body):
         print(f"Email sending error: {e}")
         return False
 
+# Fix SQLAlchemy deprecation warnings
+def get_user_by_id(user_id):
+    """Get user by ID using session.get() instead of query.get()"""
+    return db.session.get(User, user_id)
+
+def get_role_by_id(role_id):
+    """Get role by ID using session.get() instead of query.get()"""
+    return db.session.get(Role, role_id)
+
+def get_succession_plan_by_id(plan_id):
+    """Get succession plan by ID using session.get() instead of query.get()"""
+    return db.session.get(SuccessionPlan, plan_id)
+
+def get_access_request_by_id(request_id):
+    """Get access request by ID using session.get() instead of query.get()"""
+    return db.session.get(AccessRequest, request_id)
+
 # ---------- Routes ----------
 
 @app.route('/api/health', methods=['GET'])
@@ -273,7 +288,7 @@ def register():
     print("🟡 Registration request received")
     try:
         data = request.get_json()
-        print(f"�� Registration data: {data}")
+        print(f"📝 Registration data: {data}")
         
         # Validate required fields
         required_fields = ['name', 'email', 'password', 'department']
@@ -427,12 +442,12 @@ def get_current_user():
     print("🟡 Get current user request")
     try:
         user_id = get_jwt_identity()
-        print(f"�� User ID from token: {user_id}")
+        print(f"🔑 User ID from token: {user_id}")
         
         # Convert string back to integer for database query
         user_id = int(user_id) if user_id else None
         
-        user = User.query.get(user_id)
+        user = get_user_by_id(user_id)
         
         if not user:
             print(f"❌ User not found with ID: {user_id}")
@@ -463,7 +478,7 @@ def logout():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        user = User.query.get(user_id)
+        user = get_user_by_id(user_id)
         
         if user:
             print(f"✅ User logging out: {user.name} ({user.email})")
@@ -495,7 +510,7 @@ def get_users():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized access attempt by: {current_user.email if current_user else 'Unknown'}")
@@ -533,13 +548,13 @@ def update_user(user_id):
         # Convert string back to integer
         current_user_id = int(current_user_id) if current_user_id else None
         
-        current_user = User.query.get(current_user_id)
+        current_user = get_user_by_id(current_user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized update attempt by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
-        user = User.query.get(user_id)
+        user = get_user_by_id(user_id)
         if not user:
             print(f"❌ User not found with ID: {user_id}")
             return jsonify({'error': 'User not found'}), 404
@@ -622,13 +637,13 @@ def delete_user(user_id):
         # Convert string back to integer
         current_user_id = int(current_user_id) if current_user_id else None
         
-        current_user = User.query.get(current_user_id)
+        current_user = get_user_by_id(current_user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized delete attempt by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
-        user = User.query.get(user_id)
+        user = get_user_by_id(user_id)
         if not user:
             print(f"❌ User not found with ID: {user_id}")
             return jsonify({'error': 'User not found'}), 404
@@ -677,7 +692,7 @@ def get_access_requests():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role not in ['admin', 'hr_manager']:
             print(f"❌ Unauthorized access requests attempt by: {current_user.email if current_user else 'Unknown'}")
@@ -687,7 +702,7 @@ def get_access_requests():
         requests_data = []
         
         for req in requests:
-            user = User.query.get(req.user_id)
+            user = get_user_by_id(req.user_id)
             requests_data.append({
                 'id': req.id,
                 'user_name': user.name if user else 'Unknown',
@@ -707,6 +722,50 @@ def get_access_requests():
         print(f"❌ Get access requests error: {e}")
         return jsonify({'error': f'Failed to get access requests: {str(e)}'}), 500
 
+@app.route('/api/access-requests/stats', methods=['GET'])
+@jwt_required()
+def get_access_requests_stats():
+    """Get access requests statistics"""
+    print("🟡 Get access requests stats request")
+    try:
+        user_id = get_jwt_identity()
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'hr_manager']:
+            print(f"❌ Unauthorized access requests stats by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get statistics
+        total_requests = AccessRequest.query.count()
+        pending_requests = AccessRequest.query.filter_by(status='pending').count()
+        approved_requests = AccessRequest.query.filter_by(status='approved').count()
+        rejected_requests = AccessRequest.query.filter_by(status='rejected').count()
+        
+        # Get department distribution
+        dept_counts = db.session.query(
+            AccessRequest.department, db.func.count(AccessRequest.id)
+        ).group_by(AccessRequest.department).all()
+        
+        # Get role distribution
+        role_counts = db.session.query(
+            AccessRequest.requested_role, db.func.count(AccessRequest.id)
+        ).group_by(AccessRequest.requested_role).all()
+        
+        return jsonify({
+            'total_requests': total_requests,
+            'pending_requests': pending_requests,
+            'approved_requests': approved_requests,
+            'rejected_requests': rejected_requests,
+            'department_distribution': [{'department': dept, 'count': count} for dept, count in dept_counts],
+            'role_distribution': [{'role': role, 'count': count} for role, count in role_counts]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Get access requests stats error: {e}")
+        return jsonify({'error': f'Failed to get access requests stats: {str(e)}'}), 500
+
 @app.route('/api/access-requests/<int:request_id>', methods=['PUT'])
 @jwt_required()
 def update_access_request(request_id):
@@ -717,13 +776,13 @@ def update_access_request(request_id):
         # Convert string back to integer
         current_user_id = int(current_user_id) if current_user_id else None
         
-        current_user = User.query.get(current_user_id)
+        current_user = get_user_by_id(current_user_id)
         
         if not current_user or current_user.role not in ['admin', 'hr_manager']:
             print(f"❌ Unauthorized access request update by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
-        access_request = AccessRequest.query.get(request_id)
+        access_request = get_access_request_by_id(request_id)
         if not access_request:
             print(f"❌ Access request not found with ID: {request_id}")
             return jsonify({'error': 'Access request not found'}), 404
@@ -748,7 +807,7 @@ def update_access_request(request_id):
             access_request.hr_approver_id = current_user_id
             
             # Update user status
-            user = User.query.get(access_request.user_id)
+            user = get_user_by_id(access_request.user_id)
             if user:
                 user.status = 'active'
                 user.role = access_request.requested_role
@@ -767,7 +826,7 @@ def update_access_request(request_id):
             access_request.rejection_reason = data.get('rejection_reason', '')
             
             # Update user status
-            user = User.query.get(access_request.user_id)
+            user = get_user_by_id(access_request.user_id)
             if user:
                 user.status = 'rejected'
                 
@@ -816,7 +875,7 @@ def get_audit_logs():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized audit logs access by: {current_user.email if current_user else 'Unknown'}")
@@ -847,6 +906,135 @@ def get_audit_logs():
     except Exception as e:
         print(f"❌ Get audit logs error: {e}")
         return jsonify({'error': f'Failed to get audit logs: {str(e)}'}), 500
+
+@app.route('/api/audit-trail', methods=['GET'])
+@jwt_required()
+def get_audit_trail():
+    """Get audit trail with pagination and filtering"""
+    print("🟡 Get audit trail request")
+    try:
+        user_id = get_jwt_identity()
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized audit trail access by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        action = request.args.get('action', '')
+        table = request.args.get('table', '')
+        user = request.args.get('user', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        
+        # Build query
+        query = AuditLog.query
+        
+        if action:
+            query = query.filter(AuditLog.action.contains(action))
+        if table:
+            query = query.filter(AuditLog.table_name.contains(table))
+        if user:
+            query = query.filter(AuditLog.user_name.contains(user))
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(AuditLog.timestamp >= date_from_obj)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+                query = query.filter(AuditLog.timestamp <= date_to_obj)
+            except ValueError:
+                pass
+        
+        # Paginate results
+        logs = query.order_by(AuditLog.timestamp.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        logs_data = []
+        for log in logs.items:
+            logs_data.append({
+                'id': log.id,
+                'user_name': log.user_name,
+                'user_email': log.user_email,
+                'action': log.action,
+                'table_name': log.table_name,
+                'record_id': log.record_id,
+                'old_values': json.loads(log.old_values) if log.old_values else None,
+                'new_values': json.loads(log.new_values) if log.new_values else None,
+                'ip_address': log.ip_address,
+                'user_agent': log.user_agent,
+                'timestamp': log.timestamp.isoformat() if log.timestamp else None,
+                'additional_info': log.additional_info
+            })
+        
+        print(f"✅ Returning {len(logs_data)} audit trail entries")
+        return jsonify({
+            'logs': logs_data,
+            'total': logs.total,
+            'pages': logs.pages,
+            'current_page': page,
+            'per_page': per_page
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Get audit trail error: {e}")
+        return jsonify({'error': f'Failed to get audit trail: {str(e)}'}), 500
+
+@app.route('/api/audit-trail/summary', methods=['GET'])
+@jwt_required()
+def get_audit_trail_summary():
+    """Get audit trail summary statistics"""
+    print("🟡 Get audit trail summary request")
+    try:
+        user_id = get_jwt_identity()
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized audit trail summary access by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get summary statistics
+        total_logs = AuditLog.query.count()
+        today_logs = AuditLog.query.filter(
+            AuditLog.timestamp >= datetime.utcnow().date()
+        ).count()
+        
+        # Get action distribution
+        action_counts = db.session.query(
+            AuditLog.action, db.func.count(AuditLog.id)
+        ).group_by(AuditLog.action).all()
+        
+        # Get table distribution
+        table_counts = db.session.query(
+            AuditLog.table_name, db.func.count(AuditLog.id)
+        ).group_by(AuditLog.table_name).all()
+        
+        # Get user activity
+        user_activity = db.session.query(
+            AuditLog.user_name, db.func.count(AuditLog.id)
+        ).group_by(AuditLog.user_name).order_by(db.func.count(AuditLog.id).desc()).limit(10).all()
+        
+        return jsonify({
+            'total_logs': total_logs,
+            'today_logs': today_logs,
+            'action_distribution': [{'action': action, 'count': count} for action, count in action_counts],
+            'table_distribution': [{'table': table, 'count': count} for table, count in table_counts],
+            'user_activity': [{'user': user, 'count': count} for user, count in user_activity]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Get audit trail summary error: {e}")
+        return jsonify({'error': f'Failed to get audit trail summary: {str(e)}'}), 500
 
 @app.route('/api/roles', methods=['GET'])
 @jwt_required()
@@ -886,22 +1074,24 @@ def create_role():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized role creation by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.get_json()
-        print(f"�� Role creation data: {data}")
+        print(f"📝 Role creation data: {data}")
         
         # Validate required fields
+                # Validate required fields
         required_fields = ['title', 'name', 'department', 'business_line', 'criticality']
         for field in required_fields:
             if not data.get(field):
                 print(f"❌ Missing required field: {field}")
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
+        # Create new role
         role = Role(
             title=data['title'],
             name=data['name'],
@@ -954,6 +1144,154 @@ def create_role():
         print(f"❌ Create role error: {e}")
         return jsonify({'error': f'Failed to create role: {str(e)}'}), 500
 
+@app.route('/api/roles/<int:role_id>', methods=['PUT'])
+@jwt_required()
+def update_role(role_id):
+    """Update a role (admin only)"""
+    print(f"🟡 Update role request for ID: {role_id}")
+    try:
+        user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized role update by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        role = get_role_by_id(role_id)
+        if not role:
+            print(f"❌ Role not found with ID: {role_id}")
+            return jsonify({'error': 'Role not found'}), 404
+        
+        data = request.get_json()
+        print(f"📝 Role update data: {data}")
+        
+        # Store old values for audit
+        old_values = {
+            'title': role.title,
+            'name': role.name,
+            'level': role.level,
+            'department': role.department,
+            'business_line': role.business_line,
+            'criticality': role.criticality
+        }
+        
+        # Update fields
+        if 'title' in data:
+            role.title = data['title']
+        if 'name' in data:
+            role.name = data['name']
+        if 'level' in data:
+            role.level = data['level']
+        if 'department' in data:
+            role.department = data['department']
+        if 'business_line' in data:
+            role.business_line = data['business_line']
+        if 'criticality' in data:
+            role.criticality = data['criticality']
+        
+        db.session.commit()
+        print(f"✅ Role updated: {role.title}")
+        
+        # Log audit trail
+        _log_audit(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            user_email=current_user.email,
+            action='UPDATE',
+            table_name='roles',
+            record_id=role.id,
+            old_values=old_values,
+            new_values={
+                'title': role.title,
+                'name': role.name,
+                'level': role.level,
+                'department': role.department,
+                'business_line': role.business_line,
+                'criticality': role.criticality
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            additional_info='Role update'
+        )
+        
+        return jsonify({
+            'message': 'Role updated successfully',
+            'role': {
+                'id': role.id,
+                'title': role.title,
+                'name': role.name,
+                'level': role.level,
+                'department': role.department,
+                'business_line': role.business_line,
+                'criticality': role.criticality
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Update role error: {e}")
+        return jsonify({'error': f'Failed to update role: {str(e)}'}), 500
+
+@app.route('/api/roles/<int:role_id>', methods=['DELETE'])
+@jwt_required()
+def delete_role(role_id):
+    """Delete a role (admin only)"""
+    print(f"🟡 Delete role request for ID: {role_id}")
+    try:
+        user_id = get_jwt_identity()
+        # Convert string back to integer
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized role deletion by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        role = get_role_by_id(role_id)
+        if not role:
+            print(f"❌ Role not found with ID: {role_id}")
+            return jsonify({'error': 'Role not found'}), 404
+        
+        # Store role info for audit before deletion
+        role_info = {
+            'id': role.id,
+            'title': role.title,
+            'name': role.name,
+            'level': role.level,
+            'department': role.department,
+            'business_line': role.business_line,
+            'criticality': role.criticality
+        }
+        
+        db.session.delete(role)
+        db.session.commit()
+        print(f"✅ Role deleted: {role_info['title']}")
+        
+        # Log audit trail
+        _log_audit(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            user_email=current_user.email,
+            action='DELETE',
+            table_name='roles',
+            record_id=role_id,
+            old_values=role_info,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            additional_info='Role deletion'
+        )
+        
+        return jsonify({'message': 'Role deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Delete role error: {e}")
+        return jsonify({'error': f'Failed to delete role: {str(e)}'}), 500
+
 @app.route('/api/succession-plans', methods=['GET'])
 @jwt_required()
 def get_succession_plans():
@@ -964,7 +1302,7 @@ def get_succession_plans():
         plans_data = []
         
         for plan in plans:
-            role = Role.query.get(plan.role_id)
+            role = get_role_by_id(plan.role_id)
             plans_data.append({
                 'id': plan.id,
                 'role_title': role.title if role else 'Unknown',
@@ -995,7 +1333,7 @@ def create_succession_plan():
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
             print(f"❌ Unauthorized succession plan creation by: {current_user.email if current_user else 'Unknown'}")
@@ -1011,6 +1349,13 @@ def create_succession_plan():
                 print(f"❌ Missing required field: {field}")
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
+        # Validate role exists
+        role = get_role_by_id(data['role_id'])
+        if not role:
+            print(f"❌ Role not found with ID: {data['role_id']}")
+            return jsonify({'error': 'Role not found'}), 404
+        
+        # Create new succession plan
         plan = SuccessionPlan(
             role_id=data['role_id'],
             incumbent_name=data['incumbent_name'],
@@ -1063,256 +1408,264 @@ def create_succession_plan():
         print(f"❌ Create succession plan error: {e}")
         return jsonify({'error': f'Failed to create succession plan: {str(e)}'}), 500
 
-@app.route('/api/upload-roles', methods=['POST'])
+@app.route('/api/succession-plans/<int:plan_id>', methods=['PUT'])
 @jwt_required()
-def upload_roles():
-    """Upload roles from Excel file (admin only)"""
-    print("🟡 Upload roles request")
+def update_succession_plan(plan_id):
+    """Update a succession plan (admin only)"""
+    print(f"🟡 Update succession plan request for ID: {plan_id}")
     try:
         user_id = get_jwt_identity()
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
-            print(f"❌ Unauthorized role upload by: {current_user.email if current_user else 'Unknown'}")
+            print(f"❌ Unauthorized succession plan update by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
-        if 'file' not in request.files:
-            print("❌ No file provided")
-            return jsonify({'error': 'No file provided'}), 400
+        plan = get_succession_plan_by_id(plan_id)
+        if not plan:
+            print(f"❌ Succession plan not found with ID: {plan_id}")
+            return jsonify({'error': 'Succession plan not found'}), 404
         
-        file = request.files['file']
-        if file.filename == '':
-            print("❌ No file selected")
-            return jsonify({'error': 'No file selected'}), 400
+        data = request.get_json()
+        print(f"📝 Succession plan update data: {data}")
         
-        if not file.filename.endswith('.xlsx'):
-            print("❌ Invalid file type")
-            return jsonify({'error': 'Please upload an Excel file (.xlsx)'}), 400
+        # Store old values for audit
+        old_values = {
+            'role_id': plan.role_id,
+            'incumbent_name': plan.incumbent_name,
+            'incumbent_employee_id': plan.incumbent_employee_id,
+            'incumbent_tenure': plan.incumbent_tenure,
+            'retirement_date': plan.retirement_date.isoformat() if plan.retirement_date else None,
+            'readiness_level': plan.readiness_level
+        }
         
-        # Read Excel file
-        df = pd.read_excel(file)
-        print(f"📊 Excel file read: {len(df)} rows")
-        
-        # Validate required columns
-        required_columns = ['Title', 'Name', 'Department', 'Business Line', 'Criticality']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            print(f"❌ Missing columns: {missing_columns}")
-            return jsonify({'error': f'Missing required columns: {missing_columns}'}), 400
-        
-        created_count = 0
-        errors = []
-        
-        for index, row in df.iterrows():
-            try:
-                role = Role(
-                    title=row['Title'],
-                    name=row['Name'],
-                    level=row.get('Level'),
-                    department=row['Department'],
-                    business_line=row['Business Line'],
-                    criticality=row['Criticality']
-                )
-                
-                db.session.add(role)
-                created_count += 1
-                
-            except Exception as e:
-                errors.append(f"Row {index + 1}: {str(e)}")
+        # Update fields
+        if 'role_id' in data:
+            plan.role_id = data['role_id']
+        if 'incumbent_name' in data:
+            plan.incumbent_name = data['incumbent_name']
+        if 'incumbent_employee_id' in data:
+            plan.incumbent_employee_id = data['incumbent_employee_id']
+        if 'incumbent_tenure' in data:
+            plan.incumbent_tenure = data['incumbent_tenure']
+        if 'retirement_date' in data:
+            plan.retirement_date = _parse_optional_date(data['retirement_date'])
+        if 'readiness_level' in data:
+            plan.readiness_level = data['readiness_level']
         
         db.session.commit()
-        print(f"✅ Roles uploaded: {created_count} created, {len(errors)} errors")
+        print(f"✅ Succession plan updated: {plan.incumbent_name}")
         
         # Log audit trail
         _log_audit(
             user_id=current_user.id,
             user_name=current_user.name,
             user_email=current_user.email,
-            action='CREATE',
-            table_name='roles',
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent'),
-            additional_info=f'Bulk role upload: {created_count} roles created, {len(errors)} errors'
-        )
-        
-        return jsonify({
-            'message': f'Successfully uploaded {created_count} roles',
-            'created_count': created_count,
-            'errors': errors
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Upload roles error: {e}")
-        return jsonify({'error': f'Failed to upload roles: {str(e)}'}), 500
-
-@app.route('/api/upload-succession-plans', methods=['POST'])
-@jwt_required()
-def upload_succession_plans():
-    """Upload succession plans from Excel file (admin only)"""
-    print("🟡 Upload succession plans request")
-    try:
-        user_id = get_jwt_identity()
-        # Convert string back to integer
-        user_id = int(user_id) if user_id else None
-        
-        current_user = User.query.get(user_id)
-        
-        if not current_user or current_user.role != 'admin':
-            print(f"❌ Unauthorized succession plan upload by: {current_user.email if current_user else 'Unknown'}")
-            return jsonify({'error': 'Unauthorized'}), 403
-        
-        if 'file' not in request.files:
-            print("❌ No file provided")
-            return jsonify({'error': 'No file provided'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            print("❌ No file selected")
-            return jsonify({'error': 'No file selected'}), 400
-        
-        if not file.filename.endswith('.xlsx'):
-            print("❌ Invalid file type")
-            return jsonify({'error': 'Please upload an Excel file (.xlsx)'}), 400
-        
-        # Read Excel file
-        df = pd.read_excel(file)
-        print(f"�� Excel file read: {len(df)} rows")
-        
-        # Validate required columns
-        required_columns = ['Role Title', 'Incumbent Name', 'Employee ID', 'Tenure (months)', 'Readiness Level']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            print(f"❌ Missing columns: {missing_columns}")
-            return jsonify({'error': f'Missing required columns: {missing_columns}'}), 400
-        
-        created_count = 0
-        errors = []
-        
-        for index, row in df.iterrows():
-            try:
-                # Find role by title
-                role = Role.query.filter_by(title=row['Role Title']).first()
-                if not role:
-                    errors.append(f"Row {index + 1}: Role '{row['Role Title']}' not found")
-                    continue
-                
-                plan = SuccessionPlan(
-                    role_id=role.id,
-                    incumbent_name=row['Incumbent Name'],
-                    incumbent_employee_id=row['Employee ID'],
-                    incumbent_tenure=row['Tenure (months)'],
-                    retirement_date=_parse_optional_date(row.get('Retirement Date')),
-                    readiness_level=row['Readiness Level']
-                )
-                
-                db.session.add(plan)
-                created_count += 1
-                
-            except Exception as e:
-                errors.append(f"Row {index + 1}: {str(e)}")
-        
-        db.session.commit()
-        print(f"✅ Succession plans uploaded: {created_count} created, {len(errors)} errors")
-        
-        # Log audit trail
-        _log_audit(
-            user_id=current_user.id,
-            user_name=current_user.name,
-            user_email=current_user.email,
-            action='CREATE',
+            action='UPDATE',
             table_name='succession_plans',
+            record_id=plan.id,
+            old_values=old_values,
+            new_values={
+                'role_id': plan.role_id,
+                'incumbent_name': plan.incumbent_name,
+                'incumbent_employee_id': plan.incumbent_employee_id,
+                'incumbent_tenure': plan.incumbent_tenure,
+                'retirement_date': plan.retirement_date.isoformat() if plan.retirement_date else None,
+                'readiness_level': plan.readiness_level
+            },
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent'),
-            additional_info=f'Bulk succession plan upload: {created_count} plans created, {len(errors)} errors'
+            additional_info='Succession plan update'
         )
         
         return jsonify({
-            'message': f'Successfully uploaded {created_count} succession plans',
-            'created_count': created_count,
-            'errors': errors
+            'message': 'Succession plan updated successfully',
+            'plan': {
+                'id': plan.id,
+                'role_id': plan.role_id,
+                'incumbent_name': plan.incumbent_name,
+                'incumbent_employee_id': plan.incumbent_employee_id,
+                'incumbent_tenure': plan.incumbent_tenure,
+                'retirement_date': plan.retirement_date.isoformat() if plan.retirement_date else None,
+                'readiness_level': plan.readiness_level
+            }
         }), 200
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Upload succession plans error: {e}")
-        return jsonify({'error': f'Failed to upload succession plans: {str(e)}'}), 500
+        print(f"❌ Update succession plan error: {e}")
+        return jsonify({'error': f'Failed to update succession plan: {str(e)}'}), 500
 
-@app.route('/api/analytics/dashboard', methods=['GET'])
+@app.route('/api/succession-plans/<int:plan_id>', methods=['DELETE'])
 @jwt_required()
-def get_dashboard_analytics():
-    """Get dashboard analytics (admin only)"""
-    print("🟡 Get dashboard analytics request")
+def delete_succession_plan(plan_id):
+    """Delete a succession plan (admin only)"""
+    print(f"🟡 Delete succession plan request for ID: {plan_id}")
     try:
         user_id = get_jwt_identity()
         # Convert string back to integer
         user_id = int(user_id) if user_id else None
         
-        current_user = User.query.get(user_id)
+        current_user = get_user_by_id(user_id)
         
         if not current_user or current_user.role != 'admin':
-            print(f"❌ Unauthorized analytics access by: {current_user.email if current_user else 'Unknown'}")
+            print(f"❌ Unauthorized succession plan deletion by: {current_user.email if current_user else 'Unknown'}")
             return jsonify({'error': 'Unauthorized'}), 403
         
-        # Get counts
-        total_users = User.query.count()
-        pending_users = User.query.filter_by(status='pending').count()
-        active_users = User.query.filter_by(status='active').count()
-        total_roles = Role.query.count()
-        total_succession_plans = SuccessionPlan.query.count()
+        plan = get_succession_plan_by_id(plan_id)
+        if not plan:
+            print(f"❌ Succession plan not found with ID: {plan_id}")
+            return jsonify({'error': 'Succession plan not found'}), 404
         
-        print(f"📊 Analytics data: {total_users} users, {pending_users} pending, {active_users} active, {total_roles} roles, {total_succession_plans} plans")
+        # Store plan info for audit before deletion
+        plan_info = {
+            'id': plan.id,
+            'role_id': plan.role_id,
+            'incumbent_name': plan.incumbent_name,
+            'incumbent_employee_id': plan.incumbent_employee_id,
+            'incumbent_tenure': plan.incumbent_tenure,
+            'retirement_date': plan.retirement_date.isoformat() if plan.retirement_date else None,
+            'readiness_level': plan.readiness_level
+        }
         
-        # Get department distribution
-        department_counts = db.session.query(User.department, db.func.count(User.id)).group_by(User.department).all()
-        department_data = [{'department': dept, 'count': count} for dept, count in department_counts]
+        db.session.delete(plan)
+        db.session.commit()
+        print(f"✅ Succession plan deleted: {plan_info['incumbent_name']}")
         
-        # Get role distribution
-        role_counts = db.session.query(User.role, db.func.count(User.id)).group_by(User.role).all()
-        role_data = [{'role': role, 'count': count} for role, count in role_counts]
+        # Log audit trail
+        _log_audit(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            user_email=current_user.email,
+            action='DELETE',
+            table_name='succession_plans',
+            record_id=plan_id,
+            old_values=plan_info,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            additional_info='Succession plan deletion'
+        )
         
-        # Get readiness level distribution
-        readiness_counts = db.session.query(SuccessionPlan.readiness_level, db.func.count(SuccessionPlan.id)).group_by(SuccessionPlan.readiness_level).all()
-        readiness_data = [{'level': level, 'count': count} for level, count in readiness_counts]
+        return jsonify({'message': 'Succession plan deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Delete succession plan error: {e}")
+        return jsonify({'error': f'Failed to delete succession plan: {str(e)}'}), 500
+
+@app.route('/api/analytics/demographics', methods=['GET'])
+@jwt_required()
+def get_demographics_analytics():
+    """Get demographics analytics"""
+    print("🟡 Get demographics analytics request")
+    try:
+        user_id = get_jwt_identity()
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized demographics access by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get department demographics
+        dept_counts = db.session.query(
+            User.department, db.func.count(User.id)
+        ).group_by(User.department).all()
+        
+        # Get role demographics
+        role_counts = db.session.query(
+            User.role, db.func.count(User.id)
+        ).group_by(User.role).all()
+        
+        # Get status demographics
+        status_counts = db.session.query(
+            User.status, db.func.count(User.id)
+        ).group_by(User.status).all()
+        
+        # Get user creation trends (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_users = User.query.filter(
+            User.created_at >= thirty_days_ago
+        ).count()
         
         return jsonify({
-            'total_users': total_users,
-            'pending_users': pending_users,
-            'active_users': active_users,
-            'total_roles': total_roles,
-            'total_succession_plans': total_succession_plans,
-            'department_distribution': department_data,
-            'role_distribution': role_data,
-            'readiness_distribution': readiness_data
+            'department_distribution': [{'department': dept, 'count': count} for dept, count in dept_counts],
+            'role_distribution': [{'role': role, 'count': count} for role, count in role_counts],
+            'status_distribution': [{'status': status, 'count': count} for status, count in status_counts],
+            'recent_users_30_days': recent_users
         }), 200
         
     except Exception as e:
-        print(f"❌ Get analytics error: {e}")
-        return jsonify({'error': f'Failed to get analytics: {str(e)}'}), 500
+        print(f"❌ Get demographics analytics error: {e}")
+        return jsonify({'error': f'Failed to get demographics analytics: {str(e)}'}), 500
 
-# Add a simple test endpoint to check if the server is working
+@app.route('/api/analytics/trends', methods=['GET'])
+@jwt_required()
+def get_trends_analytics():
+    """Get trends analytics"""
+    print("🟡 Get trends analytics request")
+    try:
+        user_id = get_jwt_identity()
+        user_id = int(user_id) if user_id else None
+        
+        current_user = get_user_by_id(user_id)
+        
+        if not current_user or current_user.role != 'admin':
+            print(f"❌ Unauthorized trends access by: {current_user.email if current_user else 'Unknown'}")
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get user registration trends (last 7 days)
+        trends_data = []
+        for i in range(7):
+            date = datetime.utcnow().date() - timedelta(days=i)
+            count = User.query.filter(
+                db.func.date(User.created_at) == date
+            ).count()
+            trends_data.append({
+                'date': date.isoformat(),
+                'new_users': count
+            })
+        
+        # Get access request trends
+        access_trends = []
+        for i in range(7):
+            date = datetime.utcnow().date() - timedelta(days=i)
+            count = AccessRequest.query.filter(
+                db.func.date(AccessRequest.created_at) == date
+            ).count()
+            access_trends.append({
+                'date': date.isoformat(),
+                'new_requests': count
+            })
+        
+        return jsonify({
+            'user_registration_trends': trends_data,
+            'access_request_trends': access_trends
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Get trends analytics error: {e}")
+        return jsonify({'error': f'Failed to get trends analytics: {str(e)}'}), 500
+
+# Debug endpoints for testing
 @app.route('/api/test', methods=['GET'])
 def test_endpoint():
-    """Simple test endpoint"""
-    print("🟡 Test endpoint called")
+    """Test endpoint for debugging"""
     return jsonify({
-        'message': 'Server is working!',
-        'timestamp': datetime.utcnow().isoformat(),
-        'status': 'ok'
+        'message': 'Backend is working!',
+        'timestamp': datetime.utcnow().isoformat()
     })
 
-# Add a debug endpoint to check users
 @app.route('/api/debug/users', methods=['GET'])
 def debug_users():
-    """Debug endpoint to check users"""
-    print("🟡 Debug users endpoint called")
+    """Debug endpoint to list all users"""
     try:
         users = User.query.all()
         users_data = []
-        
         for user in users:
             users_data.append({
                 'id': user.id,
@@ -1323,83 +1676,36 @@ def debug_users():
                 'status': user.status,
                 'password_hash_length': len(user.password_hash) if user.password_hash else 0
             })
-        
-        print(f"�� Debug: Found {len(users_data)} users")
-        return jsonify({
-            'total_users': len(users_data),
-            'users': users_data
-        }), 200
-        
+        return jsonify(users_data), 200
     except Exception as e:
-        print(f"❌ Debug users error: {e}")
-        return jsonify({'error': f'Debug failed: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
-# Add a debug endpoint to test password
 @app.route('/api/debug/password', methods=['POST'])
 def debug_password():
-    """Debug endpoint to test password"""
-    print("🟡 Debug password endpoint called")
+    """Debug endpoint to test password verification"""
     try:
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
         
-        if not email or not password:
-            return jsonify({'error': 'Email and password required'}), 400
-        
-        print(f"🔍 Debug: Testing password for {email}")
-        
         user = User.query.filter_by(email=email).first()
         if not user:
-            print(f"❌ Debug: User not found: {email}")
             return jsonify({'error': 'User not found'}), 404
         
-        print(f"✅ Debug: User found: {user.name}")
-        print(f"📊 Debug: User status: {user.status}")
-        print(f"📊 Debug: User role: {user.role}")
-        print(f"📊 Debug: Password hash length: {len(user.password_hash)}")
-        
-        # Test password
-        password_result = user.check_password(password)
-        print(f"🔍 Debug: Password check result: {password_result}")
-        
+        result = user.check_password(password)
         return jsonify({
-            'user_found': True,
-            'user_name': user.name,
-            'user_email': user.email,
+            'email': email,
+            'password_check': result,
             'user_status': user.status,
-            'user_role': user.role,
-            'password_check': password_result,
-            'password_hash_length': len(user.password_hash)
+            'user_role': user.role
         }), 200
-        
     except Exception as e:
-        print(f"❌ Debug password error: {e}")
-        return jsonify({'error': f'Debug password failed: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
+
+# Create database tables
+with app.app_context():
+    db.create_all()
+    print("✅ Database tables created")
 
 if __name__ == '__main__':
-    print("🚀 Starting HR DataMatrix API Server...")
-    print("=" * 50)
-    
-    with app.app_context():
-        print("📊 Creating database tables...")
-        db.create_all()
-        print("✅ Database tables created")
-        
-        # Check if we have any users
-        user_count = User.query.count()
-        print(f"�� Found {user_count} users in database")
-        
-        if user_count == 0:
-            print("⚠️  No users found. You may need to create users.")
-        else:
-            print("✅ Users found in database")
-    
-    print("🌐 Server starting on http://localhost:5001")
-    print("🔧 Debug endpoints available:")
-    print("   - GET  /api/test")
-    print("   - GET  /api/debug/users")
-    print("   - POST /api/debug/password")
-    print("=" * 50)
-    
     app.run(debug=True, host='0.0.0.0', port=5001)
