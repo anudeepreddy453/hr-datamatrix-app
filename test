@@ -1,54 +1,30 @@
+# Stop backend (Ctrl+C)
+# Delete database
+del instance\hr_succession.db
+
+# Start Python
+python
+
+# Paste this code:
 from app import app, db, User
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 with app.app_context():
-    # Delete all existing users
-    User.query.delete()
+    db.create_all()
+    user = User(
+        name='Test Admin',
+        email='admin@test.com',
+        password_hash=generate_password_hash('admin123'),
+        role='admin',
+        department='IT',
+        status='active',
+        created_at=datetime.utcnow(),
+        approved_at=datetime.utcnow()
+    )
+    db.session.add(user)
     db.session.commit()
-    print("🗑️  Deleted all users")
-    
-    # Create fresh users with guaranteed working credentials
-    users = [
-        {
-            "name": "Admin User",
-            "email": "admin@test.com",
-            "password": "admin123",
-            "role": "admin",
-            "department": "IT"
-        },
-        {
-            "name": "Test User", 
-            "email": "test@test.com",
-            "password": "test123",
-            "role": "user",
-            "department": "IT"
-        },
-        {
-            "name": "HR Manager",
-            "email": "hr@test.com", 
-            "password": "hr123",
-            "role": "hr_manager",
-            "department": "HR"
-        }
-    ]
-    
-    for user_data in users:
-        user = User(
-            name=user_data['name'],
-            email=user_data['email'],
-            password_hash=generate_password_hash(user_data['password']),
-            role=user_data['role'],
-            department=user_data['department'],
-            status='active',  # Always active
-            created_at=datetime.utcnow(),
-            approved_at=datetime.utcnow()
-        )
-        db.session.add(user)
-        print(f"✅ Created: {user_data['email']} / {user_data['password']}")
-    
-    db.session.commit()
-    print("\n🎉 All users created successfully!")
-    print("\n📋 Try logging in with:")
-    print("Email: admin@test.com")
-    print("Password: admin123")
+    print("✅ Created: admin@test.com / admin123")
+
+# Exit Python (Ctrl+Z, Enter)
+# Restart backend: python app.py
