@@ -1,36 +1,162 @@
+# Check what users already exist
+from app import app, db, User
+
+with app.app_context():
+    users = User.query.all()
+    print(f"Found {len(users)} existing users:")
+    for user in users:
+        print(f"- {user.email}: {user.status}")
+#####################
+# Delete all existing users to start fresh
+with app.app_context():
+    User.query.delete()
+    db.session.commit()
+    print("🗑️  Deleted all existing users")
+#################
 from app import app, db, User
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 with app.app_context():
-    # Create tables first
-    db.create_all()
-    print("✅ Tables created")
+    # Default users
+    default_users = [
+        {
+            "name": "Admin User",
+            "email": "admin@company.com",
+            "password": "admin123",
+            "role": "admin",
+            "department": "HR"
+        },
+        {
+            "name": "Priya Sharma",
+            "email": "priya.sharma@ccr.com",
+            "password": "priya123",
+            "role": "admin",
+            "department": "CCR"
+        },
+        {
+            "name": "Rohan Mehta",
+            "email": "rohan.mehta@i2r.com",
+            "password": "rohan123",
+            "role": "admin",
+            "department": "I2R"
+        },
+        {
+            "name": "Anjali Verma",
+            "email": "anjali.verma@mkd.com",
+            "password": "anjali123",
+            "role": "admin",
+            "department": "MKD"
+        },
+        {
+            "name": "Vikram Rao",
+            "email": "vikram.rao@bacardi.com",
+            "password": "vikram123",
+            "role": "admin",
+            "department": "Bacardi"
+        },
+        {
+            "name": "Sneha Kapoor",
+            "email": "sneha.kapoor@xone.com",
+            "password": "sneha123",
+            "role": "admin",
+            "department": "Xone"
+        },
+        {
+            "name": "Arjun Malhotra",
+            "email": "arjun.malhotra@cis.com",
+            "password": "arjun123",
+            "role": "admin",
+            "department": "CIS"
+        },
+        {
+            "name": "Neha Singh",
+            "email": "neha.singh@dir.com",
+            "password": "neha123",
+            "role": "admin",
+            "department": "DIR"
+        },
+        {
+            "name": "Karan Patel",
+            "email": "karan.patel@cqis.com",
+            "password": "karan123",
+            "role": "admin",
+            "department": "CQIS"
+        },
+        {
+            "name": "Meera Nair",
+            "email": "meera.nair@osd.com",
+            "password": "meera123",
+            "role": "admin",
+            "department": "OSD"
+        },
+        {
+            "name": "Suresh Reddy",
+            "email": "suresh.reddy@dat.com",
+            "password": "suresh123",
+            "role": "admin",
+            "department": "DAT"
+        },
+        {
+            "name": "Aditi Joshi",
+            "email": "aditi.joshi@dlf.com",
+            "password": "aditi123",
+            "role": "admin",
+            "department": "DLF"
+        },
+        {
+            "name": "Kavya Menon",
+            "email": "kavya.menon@riskweb.com",
+            "password": "kavya123",
+            "role": "admin",
+            "department": "Riskweb"
+        },
+        {
+            "name": "Test User",
+            "email": "test@test.com",
+            "password": "test123",
+            "role": "user",
+            "department": "IT"
+        },
+        {
+            "name": "HR Manager",
+            "email": "hr@test.com",
+            "password": "hr123",
+            "role": "hr_manager",
+            "department": "HR"
+        }
+    ]
     
-    # Create just one user first to test
-    user = User(
-        name='Admin User',
-        email='admin@company.com',
-        password_hash=generate_password_hash('admin123'),
-        role='admin',
-        department='HR',
-        status='active',
-        created_at=datetime.utcnow(),
-        approved_at=datetime.utcnow()
-    )
+    # Create all users
+    created_count = 0
+    for user_data in default_users:
+        user = User(
+            name=user_data['name'],
+            email=user_data['email'],
+            password_hash=generate_password_hash(user_data['password']),
+            role=user_data['role'],
+            department=user_data['department'],
+            status='active',
+            created_at=datetime.utcnow(),
+            approved_at=datetime.utcnow()
+        )
+        
+        db.session.add(user)
+        created_count += 1
+        print(f"✅ Created: {user_data['email']} / {user_data['password']}")
     
-    db.session.add(user)
+    # Commit all changes
     db.session.commit()
-    print("✅ User created: admin@company.com / admin123")
+    print(f"\n🎉 Successfully created {created_count} users!")
     
-    # Test the user
-    test_user = User.query.filter_by(email='admin@company.com').first()
-    if test_user:
-        result = test_user.check_password('admin123')
-        print(f"✅ Password test: {result}")
-        if result:
-            print("🎉 SUCCESS! Now we can add more users")
-        else:
-            print("❌ Password test failed")
-    else:
-        print("❌ User not found")
+    # Show all users
+    all_users = User.query.all()
+    print(f"\n📊 Total users in database: {len(all_users)}")
+    
+    print("\n📋 All Login Credentials:")
+    print("=" * 50)
+    for user in all_users:
+        print(f"Email: {user.email}")
+        print(f"Password: {user.name.lower().replace(' ', '')}123")
+        print(f"Role: {user.role}")
+        print("-" * 30)
