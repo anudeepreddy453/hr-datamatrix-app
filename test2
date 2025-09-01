@@ -3,11 +3,11 @@ from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 with app.app_context():
-    # Delete existing user
-    User.query.filter_by(email='admin@test.com').delete()
+    # Delete all users
+    User.query.delete()
     db.session.commit()
     
-    # Create new user
+    # Create user
     user = User(
         name='Test Admin',
         email='admin@test.com',
@@ -29,8 +29,8 @@ with app.app_context():
         result = test_user.check_password('admin123')
         print(f"✅ Password test: {result}")
         if result:
-            print("🎉 SUCCESS! Password verification works!")
+            print("🎉 SUCCESS! Login should work now!")
         else:
-            print("❌ Still failing - need different approach")
+            print("❌ Still failing - need to check app.py")
     else:
         print("❌ User not found")
