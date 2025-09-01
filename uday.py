@@ -58,7 +58,7 @@ def expired_token_callback(jwt_header, jwt_payload):
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    print(f"�� JWT Invalid Token: {error}")
+    print(f"🔴 JWT Invalid Token: {error}")
     return jsonify({
         'message': 'Signature verification failed',
         'error': 'invalid_token'
@@ -977,11 +977,15 @@ def get_audit_trail():
         
         print(f"✅ Returning {len(logs_data)} audit trail entries")
         return jsonify({
-            'logs': logs_data,
-            'total': logs.total,
-            'pages': logs.pages,
-            'current_page': page,
-            'per_page': per_page
+            'audit_logs': logs_data,  # Changed from 'logs' to 'audit_logs'
+            'pagination': {  # Added proper pagination structure
+                'page': page,
+                'per_page': per_page,
+                'total': logs.total,
+                'pages': logs.pages,
+                'has_prev': logs.has_prev,
+                'has_next': logs.has_next
+            }
         }), 200
         
     except Exception as e:
@@ -1024,12 +1028,23 @@ def get_audit_trail_summary():
             AuditLog.user_name, db.func.count(AuditLog.id)
         ).group_by(AuditLog.user_name).order_by(db.func.count(AuditLog.id).desc()).limit(10).all()
         
+        # Get recent activity by date (last 7 days)
+        recent_activity = []
+        for i in range(7):
+            date = datetime.utcnow().date() - timedelta(days=i)
+            count = AuditLog.query.filter(
+                db.func.date(AuditLog.timestamp) == date
+            ).count()
+            recent_activity.append({
+                'date': date.isoformat(),
+                'count': count
+            })
+        
         return jsonify({
-            'total_logs': total_logs,
-            'today_logs': today_logs,
-            'action_distribution': [{'action': action, 'count': count} for action, count in action_counts],
-            'table_distribution': [{'table': table, 'count': count} for table, count in table_counts],
-            'user_activity': [{'user': user, 'count': count} for user, count in user_activity]
+            'total_actions': total_logs,  # Changed from 'total_logs'
+            'actions_by_user': [{'user': user, 'count': count} for user, count in user_activity],  # Changed structure
+            'actions_by_table': [{'table': table, 'count': count} for table, count in table_counts],  # Changed structure
+            'recent_activity': recent_activity  # Added recent activity
         }), 200
         
     except Exception as e:
@@ -1056,8 +1071,7 @@ def get_roles():
                 'criticality': role.criticality,
                 'created_at': role.created_at.isoformat() if role.created_at else None
             })
-        
-        print(f"✅ Returning {len(roles_data)} roles")
+                     print(f"✅ Returning {len(roles_data)} roles")
         return jsonify(roles_data), 200
         
     except Exception as e:
@@ -1084,7 +1098,6 @@ def create_role():
         print(f"📝 Role creation data: {data}")
         
         # Validate required fields
-                # Validate required fields
         required_fields = ['title', 'name', 'department', 'business_line', 'criticality']
         for field in required_fields:
             if not data.get(field):
