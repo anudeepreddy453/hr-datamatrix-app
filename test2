@@ -1,16 +1,1 @@
-from app import app, db, User
-
-with app.app_context():
-    users = User.query.all()
-    print(f"Found {len(users)} users:")
-    for user in users:
-        print(f"- {user.email}: {user.status}")
-        try:
-            result = user.check_password("admin123")
-            print(f"  Password check: {result}")
-        except Exception as e:
-            print(f"  Password error: {e}")
-
-
-
 curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"admin@test.com\",\"password\":\"admin123\"}"
